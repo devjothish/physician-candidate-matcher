@@ -4,15 +4,15 @@ Run with: python -m scripts.seed_candidates
 Requires SUPABASE_URL and SUPABASE_KEY in environment or .env file.
 """
 
-import sys
 import os
+import sys
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import httpx
-from app.config import get_settings
 
+from app.config import get_settings
 
 CANDIDATES = [
     {

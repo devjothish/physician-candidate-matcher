@@ -13,7 +13,6 @@ from dataclasses import dataclass
 
 from app.models.candidate import Candidate
 from app.services.scorer import (
-    DeterministicScore,
     ParsedRequirements,
     score_candidate,
 )
@@ -24,16 +23,18 @@ logger = get_logger(__name__)
 
 # ── Golden Set Evaluation ─────────────────────────────────────────────
 
+
 @dataclass
 class GoldenCase:
     """A single golden test case with expected outcome."""
+
     case_id: str
     description: str
     requirements: dict
     candidate: dict
-    expected_outcome: str       # "strong_match" | "weak_match" | "no_match"
-    expected_score_min: float   # minimum acceptable composite score
-    expected_score_max: float   # maximum acceptable composite score
+    expected_outcome: str  # "strong_match" | "weak_match" | "no_match"
+    expected_score_min: float  # minimum acceptable composite score
+    expected_score_max: float  # maximum acceptable composite score
     critical_dimensions: dict[str, str]  # dimension -> "high" | "low"
 
 
@@ -67,15 +68,26 @@ GOLDEN_SET: list[dict] = [
             "special_requirements": [],
         },
         "candidate": {
-            "id": "GS_C1", "name": "Test Doctor", "specialty": "Cardiology",
-            "years_experience": 8, "location": "Boston, MA", "board_certified": True,
-            "licenses": ["MA", "NY"], "education": "Harvard", "skills": ["Interventional Cardiology"],
-            "availability": "30 days", "preferred_employment": ["full-time"],
+            "id": "GS_C1",
+            "name": "Test Doctor",
+            "specialty": "Cardiology",
+            "years_experience": 8,
+            "location": "Boston, MA",
+            "board_certified": True,
+            "licenses": ["MA", "NY"],
+            "education": "Harvard",
+            "skills": ["Interventional Cardiology"],
+            "availability": "30 days",
+            "preferred_employment": ["full-time"],
         },
         "expected_outcome": "strong_match",
         "expected_score_min": 0.75,
         "expected_score_max": 1.0,
-        "critical_dimensions": {"Specialty Alignment": "high", "Board Certification": "high", "Location & Licensure": "high"},
+        "critical_dimensions": {
+            "Specialty Alignment": "high",
+            "Board Certification": "high",
+            "Location & Licensure": "high",
+        },
     },
     {
         "case_id": "GS002",
@@ -95,10 +107,17 @@ GOLDEN_SET: list[dict] = [
             "special_requirements": [],
         },
         "candidate": {
-            "id": "GS_C2", "name": "Test Doctor", "specialty": "Pediatrics",
-            "years_experience": 10, "location": "Boston, MA", "board_certified": True,
-            "licenses": ["MA"], "education": "Stanford", "skills": ["Neonatal Care"],
-            "availability": "Immediately", "preferred_employment": ["full-time"],
+            "id": "GS_C2",
+            "name": "Test Doctor",
+            "specialty": "Pediatrics",
+            "years_experience": 10,
+            "location": "Boston, MA",
+            "board_certified": True,
+            "licenses": ["MA"],
+            "education": "Stanford",
+            "skills": ["Neonatal Care"],
+            "availability": "Immediately",
+            "preferred_employment": ["full-time"],
         },
         "expected_outcome": "no_match",
         "expected_score_min": 0.0,
@@ -123,10 +142,17 @@ GOLDEN_SET: list[dict] = [
             "special_requirements": [],
         },
         "candidate": {
-            "id": "GS_C3", "name": "Test Doctor", "specialty": "Cardiology",
-            "years_experience": 3, "location": "Atlanta, GA", "board_certified": False,
-            "licenses": ["GA"], "education": "Emory", "skills": ["Echocardiography"],
-            "availability": "90 days", "preferred_employment": ["full-time"],
+            "id": "GS_C3",
+            "name": "Test Doctor",
+            "specialty": "Cardiology",
+            "years_experience": 3,
+            "location": "Atlanta, GA",
+            "board_certified": False,
+            "licenses": ["GA"],
+            "education": "Emory",
+            "skills": ["Echocardiography"],
+            "availability": "90 days",
+            "preferred_employment": ["full-time"],
         },
         "expected_outcome": "weak_match",
         "expected_score_min": 0.40,
@@ -151,10 +177,17 @@ GOLDEN_SET: list[dict] = [
             "special_requirements": [],
         },
         "candidate": {
-            "id": "GS_C4", "name": "Test Doctor", "specialty": "Emergency Medicine",
-            "years_experience": 10, "location": "Philadelphia, PA", "board_certified": True,
-            "licenses": ["PA", "NJ"], "education": "Penn", "skills": ["Trauma"],
-            "availability": "Immediately", "preferred_employment": ["full-time"],
+            "id": "GS_C4",
+            "name": "Test Doctor",
+            "specialty": "Emergency Medicine",
+            "years_experience": 10,
+            "location": "Philadelphia, PA",
+            "board_certified": True,
+            "licenses": ["PA", "NJ"],
+            "education": "Penn",
+            "skills": ["Trauma"],
+            "availability": "Immediately",
+            "preferred_employment": ["full-time"],
         },
         "expected_outcome": "weak_match",
         "expected_score_min": 0.45,
@@ -179,10 +212,17 @@ GOLDEN_SET: list[dict] = [
             "special_requirements": [],
         },
         "candidate": {
-            "id": "GS_C5", "name": "Test Doctor", "specialty": "Neurology",
-            "years_experience": 3, "location": "Detroit, MI", "board_certified": True,
-            "licenses": ["MI"], "education": "Wayne State", "skills": ["Movement Disorders"],
-            "availability": "30 days", "preferred_employment": ["full-time"],
+            "id": "GS_C5",
+            "name": "Test Doctor",
+            "specialty": "Neurology",
+            "years_experience": 3,
+            "location": "Detroit, MI",
+            "board_certified": True,
+            "licenses": ["MI"],
+            "education": "Wayne State",
+            "skills": ["Movement Disorders"],
+            "availability": "30 days",
+            "preferred_employment": ["full-time"],
         },
         "expected_outcome": "weak_match",
         "expected_score_min": 0.40,
@@ -229,8 +269,8 @@ def run_golden_set() -> dict:
             dim_results[dim_name] = {
                 "expected": expected_level,
                 "actual": round(actual_val, 2),
-                "passed": (expected_level == "high" and actual_val >= 0.7) or
-                          (expected_level == "low" and actual_val <= 0.6),
+                "passed": (expected_level == "high" and actual_val >= 0.7)
+                or (expected_level == "low" and actual_val <= 0.6),
             }
 
         passed = in_range and dims_pass
@@ -254,15 +294,17 @@ def run_golden_set() -> dict:
                     reasons.append(f"{dim}: expected {dr['expected']}, got {dr['actual']}")
             failure_reason = "; ".join(reasons)
 
-        results.append(EvalResult(
-            case_id=case.case_id,
-            passed=passed,
-            actual_score=round(score.composite, 3),
-            expected_range=f"[{case.expected_score_min}, {case.expected_score_max}]",
-            actual_outcome=actual_outcome,
-            dimension_results=dim_results,
-            failure_reason=failure_reason,
-        ))
+        results.append(
+            EvalResult(
+                case_id=case.case_id,
+                passed=passed,
+                actual_score=round(score.composite, 3),
+                expected_range=f"[{case.expected_score_min}, {case.expected_score_max}]",
+                actual_outcome=actual_outcome,
+                dimension_results=dim_results,
+                failure_reason=failure_reason,
+            )
+        )
 
     passed_count = sum(1 for r in results if r.passed)
     total = len(results)
@@ -298,6 +340,7 @@ def run_golden_set() -> dict:
 
 
 # ── Feedback Loop Analysis ────────────────────────────────────────────
+
 
 def analyze_feedback(feedback_data: list[dict]) -> dict:
     """Analyze recruiter feedback to detect quality drift.

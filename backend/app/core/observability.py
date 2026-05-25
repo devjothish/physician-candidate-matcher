@@ -31,6 +31,7 @@ class PhaseMetrics:
 @dataclass
 class RequestTrace:
     """End-to-end trace for a single match request."""
+
     request_id: str
     job_title: str = ""
     start_time: float = field(default_factory=time.time)
@@ -110,6 +111,7 @@ class RequestTrace:
 
 # ── Deep Health Check ─────────────────────────────────────────────────
 
+
 def deep_health_check() -> dict:
     """Check connectivity to all downstream dependencies."""
     results: dict[str, dict] = {}
@@ -117,7 +119,9 @@ def deep_health_check() -> dict:
     # Supabase
     try:
         import httpx
+
         from app.config import get_settings as _get_settings
+
         s = _get_settings()
         start = time.time()
         r = httpx.get(
@@ -138,7 +142,9 @@ def deep_health_check() -> dict:
     # Claude API
     try:
         import anthropic
+
         from app.config import get_settings
+
         settings = get_settings()
         client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
         start = time.time()

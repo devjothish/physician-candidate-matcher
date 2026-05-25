@@ -11,7 +11,6 @@ from dataclasses import dataclass
 
 from app.models.candidate import Candidate
 from app.models.match import CandidateMatch
-from app.services.scorer import ParsedRequirements
 from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -30,14 +29,12 @@ PROMPT_INJECTION_PATTERNS = [
     r"new\s+instructions?\s*:",
 ]
 
-_INJECTION_RE = re.compile(
-    "|".join(PROMPT_INJECTION_PATTERNS), re.IGNORECASE
-)
+_INJECTION_RE = re.compile("|".join(PROMPT_INJECTION_PATTERNS), re.IGNORECASE)
 
 PII_PATTERNS = [
-    r"\b\d{3}-\d{2}-\d{4}\b",                    # SSN with dashes
-    r"\b[A-Z]\d{8}\b",                            # passport
-    r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b",            # phone numbers
+    r"\b\d{3}-\d{2}-\d{4}\b",  # SSN with dashes
+    r"\b[A-Z]\d{8}\b",  # passport
+    r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b",  # phone numbers
 ]
 
 _PII_RE = re.compile("|".join(PII_PATTERNS))
@@ -79,6 +76,7 @@ def validate_jd_input(text: str) -> InputValidation:
 
 
 # ── Output Guardrails ─────────────────────────────────────────────────
+
 
 @dataclass
 class OutputValidation:
@@ -123,7 +121,7 @@ def validate_batch_assessment(
             continue
 
         skills = item.get("skills_score", 0.5)
-        if not isinstance(skills, (int, float)):
+        if not isinstance(skills, int | float):
             skills = 0.5
         item["skills_score"] = max(0.0, min(1.0, float(skills)))
 
@@ -195,6 +193,7 @@ def check_request_cost(estimated_cost: float) -> CostCheck:
 
 
 # ── Bias Guardrails ───────────────────────────────────────────────────
+
 
 def check_scoring_bias(
     candidates: list[Candidate],

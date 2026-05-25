@@ -33,10 +33,7 @@ class LLMResult:
 
 
 def _is_retryable(exc: BaseException) -> bool:
-    return (
-        isinstance(exc, anthropic.APIStatusError)
-        and exc.status_code in RETRYABLE_STATUS_CODES
-    )
+    return isinstance(exc, anthropic.APIStatusError) and exc.status_code in RETRYABLE_STATUS_CODES
 
 
 class ClaudeService:
@@ -153,9 +150,13 @@ class ClaudeService:
             raise ClaudeAPIError(detail="Claude API connection error") from e
 
     def _log_failure(
-        self, model: str, prompt_type: str,
-        input_tokens: int, output_tokens: int,
-        latency_ms: float, error_message: str,
+        self,
+        model: str,
+        prompt_type: str,
+        input_tokens: int,
+        output_tokens: int,
+        latency_ms: float,
+        error_message: str,
     ) -> None:
         cost = calculate_cost(input_tokens, output_tokens, model)
         self.metrics_repo.log_llm_call(

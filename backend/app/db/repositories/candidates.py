@@ -42,12 +42,15 @@ class CandidateRepository:
 
     def get_by_specialty(self, specialty: str, limit: int = 50) -> list[Candidate]:
         import re
+
         safe_specialty = re.sub(r"[^a-zA-Z0-9 /\-]", "", specialty)
-        data = self._fetch({
-            "select": "*",
-            "specialty": f"ilike.*{safe_specialty}*",
-            "limit": str(limit),
-        })
+        data = self._fetch(
+            {
+                "select": "*",
+                "specialty": f"ilike.*{safe_specialty}*",
+                "limit": str(limit),
+            }
+        )
         logger.info(
             "fetched_candidates_by_specialty",
             specialty=specialty,
@@ -56,11 +59,13 @@ class CandidateRepository:
         return [Candidate(**row) for row in data]
 
     def get_by_id(self, candidate_id: str) -> Candidate | None:
-        data = self._fetch({
-            "select": "*",
-            "id": f"eq.{candidate_id}",
-            "limit": "1",
-        })
+        data = self._fetch(
+            {
+                "select": "*",
+                "id": f"eq.{candidate_id}",
+                "limit": "1",
+            }
+        )
         if not data:
             return None
         return Candidate(**data[0])

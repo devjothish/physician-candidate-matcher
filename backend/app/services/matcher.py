@@ -12,6 +12,14 @@ import time
 import uuid
 
 from app.config import get_settings
+from app.core.guardrails import (
+    check_scoring_bias,
+    validate_batch_assessment,
+    validate_jd_input,
+    validate_match_scores,
+    validate_parsed_requirements,
+)
+from app.core.observability import PhaseMetrics, RequestTrace
 from app.core.prompts import (
     BATCH_ASSESSMENT_PROMPT,
     JD_PARSE_PROMPT,
@@ -23,14 +31,6 @@ from app.models.candidate import Candidate
 from app.models.job import JobDescription
 from app.models.match import CandidateMatch, MatchResponse, MatchScore
 from app.services.claude import ClaudeService, LLMResult
-from app.core.guardrails import (
-    check_scoring_bias,
-    validate_batch_assessment,
-    validate_jd_input,
-    validate_match_scores,
-    validate_parsed_requirements,
-)
-from app.core.observability import PhaseMetrics, RequestTrace
 from app.services.scorer import (
     DeterministicScore,
     ParsedRequirements,
@@ -91,29 +91,31 @@ class MatchingService:
         )
         reqs, phase1_llm = self._parse_jd(claude, job_for_parse, model)
         phase1_ms = (time.time() - phase1_start) * 1000
-        trace.add_phase(PhaseMetrics(
-            name="jd_parse", latency_ms=phase1_ms, llm_calls=1,
-            input_tokens=phase1_llm.input_tokens,
-            output_tokens=phase1_llm.output_tokens,
-            cost_usd=phase1_llm.cost_usd,
-            items_in=1, items_out=1,
-        ))
+        trace.add_phase(
+            PhaseMetrics(
+                name="jd_parse",
+                latency_ms=phase1_ms,
+                llm_calls=1,
+                input_tokens=phase1_llm.input_tokens,
+                output_tokens=phase1_llm.output_tokens,
+                cost_usd=phase1_llm.cost_usd,
+                items_in=1,
+                items_out=1,
+            )
+        )
 
         # Output guardrail on parsed requirements
         import dataclasses
+
         req_validation = validate_parsed_requirements(dataclasses.asdict(reqs))
         if req_validation.issues:
             for issue in req_validation.issues:
                 trace.add_warning(f"jd_parse:{issue}")
 
         # Fetch candidates
-        candidates = self.candidate_repo.get_by_specialty(
-            job.specialty, limit=self.settings.max_candidates_per_request
-        )
+        candidates = self.candidate_repo.get_by_specialty(job.specialty, limit=self.settings.max_candidates_per_request)
         if not candidates:
-            candidates = self.candidate_repo.get_all(
-                limit=self.settings.max_candidates_per_request
-            )
+            candidates = self.candidate_repo.get_all(limit=self.settings.max_candidates_per_request)
         if not candidates:
             raise MatchingError(detail="No candidates available.")
 
@@ -121,15 +123,18 @@ class MatchingService:
         phase2_start = time.time()
         scored = score_all(candidates, reqs, threshold=DETERMINISTIC_THRESHOLD)
         phase2_ms = (time.time() - phase2_start) * 1000
-        trace.add_phase(PhaseMetrics(
-            name="deterministic_score", latency_ms=phase2_ms, llm_calls=0,
-            items_in=len(candidates), items_out=len(scored),
-        ))
+        trace.add_phase(
+            PhaseMetrics(
+                name="deterministic_score",
+                latency_ms=phase2_ms,
+                llm_calls=0,
+                items_in=len(candidates),
+                items_out=len(scored),
+            )
+        )
 
         if not scored:
-            raise MatchingError(
-                detail="No candidates met the minimum scoring threshold."
-            )
+            raise MatchingError(detail="No candidates met the minimum scoring threshold.")
 
         # Phase 3: LLM assessment on shortlist only (1 LLM call)
         shortlist = scored[:SHORTLIST_SIZE]
@@ -142,13 +147,18 @@ class MatchingService:
         assessments = {item["candidate_id"]: item for item in validated}
 
         phase3_ms = (time.time() - phase3_start) * 1000
-        trace.add_phase(PhaseMetrics(
-            name="llm_assessment", latency_ms=phase3_ms, llm_calls=1,
-            input_tokens=phase3_llm.input_tokens if phase3_llm else 0,
-            output_tokens=phase3_llm.output_tokens if phase3_llm else 0,
-            cost_usd=phase3_llm.cost_usd if phase3_llm else 0,
-            items_in=len(shortlist), items_out=len(assessments),
-        ))
+        trace.add_phase(
+            PhaseMetrics(
+                name="llm_assessment",
+                latency_ms=phase3_ms,
+                llm_calls=1,
+                input_tokens=phase3_llm.input_tokens if phase3_llm else 0,
+                output_tokens=phase3_llm.output_tokens if phase3_llm else 0,
+                cost_usd=phase3_llm.cost_usd if phase3_llm else 0,
+                items_in=len(shortlist),
+                items_out=len(assessments),
+            )
+        )
 
         # Merge deterministic scores + LLM assessments
         matches = self._merge_results(shortlist, assessments, reqs)
@@ -163,9 +173,7 @@ class MatchingService:
                 trace.add_warning(f"score_bounds:{issue}")
 
         # Bias detection guardrail
-        bias_warnings = check_scoring_bias(
-            [ds.candidate for ds in shortlist], matches
-        )
+        bias_warnings = check_scoring_bias([ds.candidate for ds in shortlist], matches)
         for bw in bias_warnings:
             trace.add_warning(f"bias:{bw}")
 
@@ -224,18 +232,20 @@ class MatchingService:
         candidates_for_llm = []
         for ds in shortlist:
             c = ds.candidate
-            candidates_for_llm.append({
-                "candidate_id": c.id,
-                "specialty": c.specialty,
-                "years_experience": c.years_experience,
-                "location": c.location,
-                "board_certified": c.board_certified,
-                "licenses": c.licenses,
-                "education": c.education,
-                "skills": c.skills,
-                "availability": c.availability,
-                "deterministic_score": round(ds.composite * 100),
-            })
+            candidates_for_llm.append(
+                {
+                    "candidate_id": c.id,
+                    "specialty": c.specialty,
+                    "years_experience": c.years_experience,
+                    "location": c.location,
+                    "board_certified": c.board_certified,
+                    "licenses": c.licenses,
+                    "education": c.education,
+                    "skills": c.skills,
+                    "availability": c.availability,
+                    "deterministic_score": round(ds.composite * 100),
+                }
+            )
 
         reqs_dict = {
             "required_specialty": reqs.required_specialty,
@@ -300,22 +310,26 @@ class MatchingService:
                 )
                 for label, value in ds.detail_dict.items()
             ]
-            scores.append(MatchScore(
-                category="Clinical Skills",
-                score=skills_score,
-                explanation=assessment.get("summary", "Skills assessed by AI review"),
-            ))
+            scores.append(
+                MatchScore(
+                    category="Clinical Skills",
+                    score=skills_score,
+                    explanation=assessment.get("summary", "Skills assessed by AI review"),
+                )
+            )
 
-            matches.append(CandidateMatch(
-                candidate_id=c.id,
-                candidate_name=c.name,
-                overall_score=round(overall, 1),
-                rank=0,
-                scores=scores,
-                summary=assessment.get("summary", ""),
-                strengths=assessment.get("strengths", []),
-                gaps=assessment.get("gaps", []),
-            ))
+            matches.append(
+                CandidateMatch(
+                    candidate_id=c.id,
+                    candidate_name=c.name,
+                    overall_score=round(overall, 1),
+                    rank=0,
+                    scores=scores,
+                    summary=assessment.get("summary", ""),
+                    strengths=assessment.get("strengths", []),
+                    gaps=assessment.get("gaps", []),
+                )
+            )
 
         return matches
 

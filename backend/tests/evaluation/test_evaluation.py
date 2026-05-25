@@ -86,9 +86,7 @@ class TestGoldenSetAccuracy:
             "locum_tenens",
         ],
     )
-    def test_golden_case(
-        self, golden_set: dict, claude_service, case_index: int
-    ) -> None:
+    def test_golden_case(self, golden_set: dict, claude_service, case_index: int) -> None:
         """Each golden case should produce scores within expected ranges."""
         case = golden_set["test_cases"][case_index]
         expected = case["expected"]
@@ -100,54 +98,46 @@ class TestGoldenSetAccuracy:
         )
 
         overall = result.get("overall_score", 0)
-        scores_by_cat = {
-            s["category"]: s["score"] for s in result.get("scores", [])
-        }
+        scores_by_cat = {s["category"]: s["score"] for s in result.get("scores", [])}
 
         # Check overall score range
         if "overall_score_min" in expected:
-            assert overall >= expected["overall_score_min"], (
-                f"[{case['id']}] Overall {overall} < min {expected['overall_score_min']}"
-            )
+            assert (
+                overall >= expected["overall_score_min"]
+            ), f"[{case['id']}] Overall {overall} < min {expected['overall_score_min']}"
         if "overall_score_max" in expected:
-            assert overall <= expected["overall_score_max"], (
-                f"[{case['id']}] Overall {overall} > max {expected['overall_score_max']}"
-            )
+            assert (
+                overall <= expected["overall_score_max"]
+            ), f"[{case['id']}] Overall {overall} > max {expected['overall_score_max']}"
 
         # Check category-specific scores
         for cat in ["specialty", "location", "credentials", "availability"]:
             score_key = f"{cat}_score_min"
             if score_key in expected:
                 cat_score = scores_by_cat.get(f"{cat}_match", 0)
-                assert cat_score >= expected[score_key], (
-                    f"[{case['id']}] {cat} score {cat_score} < min {expected[score_key]}"
-                )
+                assert (
+                    cat_score >= expected[score_key]
+                ), f"[{case['id']}] {cat} score {cat_score} < min {expected[score_key]}"
 
             max_key = f"{cat}_score_max"
             if max_key in expected:
                 cat_score = scores_by_cat.get(f"{cat}_match", 1.0)
-                assert cat_score <= expected[max_key], (
-                    f"[{case['id']}] {cat} score {cat_score} > max {expected[max_key]}"
-                )
+                assert (
+                    cat_score <= expected[max_key]
+                ), f"[{case['id']}] {cat} score {cat_score} > max {expected[max_key]}"
 
         # Check gaps presence
         gaps = result.get("gaps", [])
         if expected.get("must_have_gaps"):
-            assert len(gaps) > 0, (
-                f"[{case['id']}] Expected gaps but got none"
-            )
+            assert len(gaps) > 0, f"[{case['id']}] Expected gaps but got none"
 
     def test_ranking_order(self, golden_set: dict, claude_service) -> None:
         """Perfect match should rank higher than wrong specialty."""
         perfect = golden_set["test_cases"][0]  # Perfect cardiology
         wrong = golden_set["test_cases"][1]  # Wrong specialty
 
-        perfect_result = _run_match(
-            claude_service, perfect["job"], perfect["candidate"]
-        )
-        wrong_result = _run_match(
-            claude_service, wrong["job"], wrong["candidate"]
-        )
+        perfect_result = _run_match(claude_service, perfect["job"], perfect["candidate"])
+        wrong_result = _run_match(claude_service, wrong["job"], wrong["candidate"])
 
         assert perfect_result["overall_score"] > wrong_result["overall_score"], (
             f"Perfect match ({perfect_result['overall_score']}) should score "

@@ -3,7 +3,7 @@
 Uses direct REST calls to avoid Supabase SDK thread-safety issues.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 
@@ -32,7 +32,7 @@ class FeedbackRepository:
             "candidate_id": feedback.candidate_id,
             "feedback_type": feedback.feedback_type,
             "notes": feedback.notes,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         try:

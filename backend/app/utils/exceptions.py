@@ -24,9 +24,7 @@ class ValidationError(HTTPException):
 class RateLimitError(HTTPException):
     """Raised when a client exceeds the configured rate limit."""
 
-    def __init__(
-        self, detail: str = "Rate limit exceeded. Please try again later."
-    ) -> None:
+    def __init__(self, detail: str = "Rate limit exceeded. Please try again later.") -> None:
         super().__init__(status_code=429, detail=detail)
 
 

@@ -30,7 +30,7 @@ jobs:
         run: ruff check .
 
       - name: Format check with black
-        run: black --check .
+        run: black --check --line-length 120 .
 
       - name: Type check with mypy
         run: mypy app/ --ignore-missing-imports

@@ -3,7 +3,7 @@
 Uses direct REST calls to avoid Supabase SDK thread-safety issues.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 
@@ -48,7 +48,7 @@ class MetricsRepository:
             "cost_usd": cost_usd,
             "success": success,
             "error_message": error_message,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         try:
@@ -117,6 +117,11 @@ class MetricsRepository:
         except Exception:
             logger.exception("analytics_query_failed")
             return {
-                "total_calls": 0, "total_input_tokens": 0, "total_output_tokens": 0,
-                "total_cost_usd": 0.0, "avg_latency_ms": 0.0, "success_rate": 0.0, "by_model": {},
+                "total_calls": 0,
+                "total_input_tokens": 0,
+                "total_output_tokens": 0,
+                "total_cost_usd": 0.0,
+                "avg_latency_ms": 0.0,
+                "success_rate": 0.0,
+                "by_model": {},
             }

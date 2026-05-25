@@ -41,6 +41,7 @@ ADJACENT_STATES: dict[str, set[str]] = {
 @dataclass
 class ParsedRequirements:
     """Structured requirements extracted from a JD by the LLM."""
+
     required_specialty: str
     adjacent_specialties: list[str]
     min_years_experience: int
@@ -75,6 +76,7 @@ class ParsedRequirements:
 @dataclass
 class DeterministicScore:
     """Pre-LLM score for a single candidate."""
+
     candidate: Candidate
     specialty_score: float
     experience_score: float
@@ -141,12 +143,15 @@ def score_candidate(
         + employment * WEIGHTS["employment"]
     )
 
-    composite = _apply_dealbreakers(composite, {
-        "specialty": specialty,
-        "experience": experience,
-        "credentials": credentials,
-        "location": location,
-    })
+    composite = _apply_dealbreakers(
+        composite,
+        {
+            "specialty": specialty,
+            "experience": experience,
+            "credentials": credentials,
+            "location": location,
+        },
+    )
 
     return DeterministicScore(
         candidate=candidate,
@@ -285,6 +290,7 @@ def _score_employment(c: Candidate, r: ParsedRequirements) -> float:
 def _parse_days(text: str) -> int | None:
     """Extract number of days from availability text like '30 days' or '90 days'."""
     import re
+
     match = re.search(r"(\d+)\s*day", text)
     if match:
         return int(match.group(1))

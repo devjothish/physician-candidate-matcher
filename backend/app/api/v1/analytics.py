@@ -1,12 +1,14 @@
 """Analytics, eval, and health endpoints."""
 
+from datetime import UTC
+
 from fastapi import APIRouter, Query
 
 from app.core.eval import run_golden_set
 from app.core.observability import deep_health_check
+from app.db.repositories.feedback import FeedbackRepository
 from app.db.repositories.matches import MatchRepository
 from app.db.repositories.metrics import MetricsRepository
-from app.db.repositories.feedback import FeedbackRepository
 from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -71,9 +73,11 @@ def get_cost_analytics(
     metrics_repo = MetricsRepository()
 
     try:
+        from datetime import datetime, timedelta
+
         import httpx
-        from datetime import datetime, timedelta, timezone
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
 
         with httpx.Client(timeout=10.0) as client:
             r = client.get(

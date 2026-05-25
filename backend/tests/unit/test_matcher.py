@@ -4,9 +4,9 @@ import pytest
 from pydantic import ValidationError
 
 from app.models.candidate import Candidate
-from app.models.job import JobDescription
-from app.models.match import CandidateMatch, MatchResponse, MatchScore
 from app.models.feedback import RecruiterFeedback
+from app.models.job import JobDescription
+from app.models.match import CandidateMatch, MatchScore
 
 
 class TestJobDescriptionModel:

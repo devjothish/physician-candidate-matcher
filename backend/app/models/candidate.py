@@ -13,20 +13,14 @@ class Candidate(BaseModel):
     id: str = Field(..., description="Unique candidate identifier")
     name: str = Field(..., description="Full name (excluded from scoring payload)")
     specialty: str = Field(..., description="Primary medical specialty")
-    years_experience: int = Field(
-        ..., ge=0, description="Years of post-residency experience"
-    )
+    years_experience: int = Field(..., ge=0, description="Years of post-residency experience")
     location: str = Field(..., description="Current city and state")
-    board_certified: bool = Field(
-        ..., description="Whether the candidate holds board certification"
-    )
+    board_certified: bool = Field(..., description="Whether the candidate holds board certification")
     licenses: list[str] = Field(
         default_factory=list,
         description="List of active state medical licenses",
     )
-    education: str | None = Field(
-        default=None, description="Medical school and residency"
-    )
+    education: str | None = Field(default=None, description="Medical school and residency")
     skills: list[str] = Field(
         default_factory=list,
         description="Clinical skills and procedure proficiencies",

@@ -4,7 +4,7 @@ Uses direct REST calls to avoid Supabase SDK thread-safety issues.
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 
@@ -56,7 +56,7 @@ class MatchRepository:
                 "cost_usd": round(cost_usd / max(len(match_response.matches), 1), 6),
                 "latency_ms": int(latency_ms // max(len(match_response.matches), 1)),
                 "request_id": match_response.request_id,
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             }
 
             try:

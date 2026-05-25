@@ -1,7 +1,5 @@
 """Unit tests for token counting and cost calculation."""
 
-import pytest
-
 from app.utils.tokens import MODEL_COSTS, calculate_cost
 
 
