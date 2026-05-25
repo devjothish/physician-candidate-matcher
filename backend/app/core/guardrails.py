@@ -200,7 +200,7 @@ def check_scoring_bias(
     matches: list[CandidateMatch],
 ) -> list[str]:
     """Detect potential scoring bias patterns."""
-    warnings = []
+    warnings: list[str] = []
 
     if len(matches) < 3:
         return warnings
