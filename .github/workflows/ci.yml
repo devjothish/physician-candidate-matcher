@@ -61,4 +61,6 @@ jobs:
         run: npm run lint
 
       - name: Build
-        run: NEXT_PUBLIC_API_URL=http://localhost:8000 npx next build --no-turbopack
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
