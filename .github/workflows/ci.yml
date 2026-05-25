@@ -61,7 +61,7 @@ jobs:
         run: npm run lint
 
       - name: Type check
-        run: npx tsc --noEmit
+        run: npx next build --no-lint
 
       - name: Build
         run: npm run build
