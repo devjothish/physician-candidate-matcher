@@ -1,0 +1,285 @@
+{
+  "description": "Golden test set for physician-candidate matcher evaluation. Each test case defines a job, a candidate, and expected scoring ranges.",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "golden-001",
+      "name": "Perfect cardiology match",
+      "job": {
+        "title": "Interventional Cardiologist",
+        "specialty": "Cardiology",
+        "location": "Boston, MA",
+        "requirements": "Board-certified interventional cardiologist with 5+ years experience. Active MA license required. Must have cardiac catheterization and complex PCI experience. Fellowship from ACGME-accredited program.",
+        "preferred_experience_years": 5,
+        "employment_type": "full-time"
+      },
+      "candidate": {
+        "specialty": "Cardiology",
+        "years_experience": 8,
+        "location": "Boston, MA",
+        "board_certified": true,
+        "licenses": ["MA", "NY"],
+        "skills": ["Interventional Cardiology", "Cardiac Catheterization", "Complex PCI", "TAVR"],
+        "availability": "30 days",
+        "preferred_employment": ["full-time"]
+      },
+      "expected": {
+        "overall_score_min": 85,
+        "overall_score_max": 100,
+        "specialty_score_min": 0.9,
+        "should_have_no_gaps": false
+      }
+    },
+    {
+      "id": "golden-002",
+      "name": "Wrong specialty - dermatologist for cardiology",
+      "job": {
+        "title": "Cardiologist",
+        "specialty": "Cardiology",
+        "location": "Chicago, IL",
+        "requirements": "Seeking board-certified cardiologist for outpatient clinic. Must have echocardiography and stress testing experience. Active Illinois license required. Minimum 3 years experience.",
+        "preferred_experience_years": 3,
+        "employment_type": "full-time"
+      },
+      "candidate": {
+        "specialty": "Dermatology",
+        "years_experience": 5,
+        "location": "Chicago, IL",
+        "board_certified": true,
+        "licenses": ["IL"],
+        "skills": ["Mohs Surgery", "Cosmetic Dermatology", "Skin Cancer Screening"],
+        "availability": "Immediately",
+        "preferred_employment": ["full-time"]
+      },
+      "expected": {
+        "overall_score_min": 0,
+        "overall_score_max": 35,
+        "specialty_score_max": 0.3,
+        "must_have_gaps": true
+      }
+    },
+    {
+      "id": "golden-003",
+      "name": "Adjacent specialty - internal medicine for hospitalist",
+      "job": {
+        "title": "Hospitalist",
+        "specialty": "Internal Medicine",
+        "location": "Denver, CO",
+        "requirements": "Board-certified internal medicine physician for hospitalist program. Must have hospital medicine experience. Active CO license preferred. Night and weekend coverage required. EMR proficiency expected.",
+        "preferred_experience_years": 3,
+        "employment_type": "full-time"
+      },
+      "candidate": {
+        "specialty": "Internal Medicine",
+        "years_experience": 12,
+        "location": "Denver, CO",
+        "board_certified": true,
+        "licenses": ["CO", "UT"],
+        "skills": ["Hospital Medicine", "Critical Care", "Geriatric Care", "EMR Systems"],
+        "availability": "Immediately",
+        "preferred_employment": ["full-time"]
+      },
+      "expected": {
+        "overall_score_min": 80,
+        "overall_score_max": 100,
+        "specialty_score_min": 0.8,
+        "should_have_no_gaps": false
+      }
+    },
+    {
+      "id": "golden-004",
+      "name": "Location mismatch - no license in target state",
+      "job": {
+        "title": "Emergency Medicine Physician",
+        "specialty": "Emergency Medicine",
+        "location": "New York, NY",
+        "requirements": "Board-certified emergency medicine physician for Level 1 trauma center. Active New York medical license required. Must have trauma management and critical care experience. ATLS certification mandatory.",
+        "preferred_experience_years": 5,
+        "employment_type": "full-time"
+      },
+      "candidate": {
+        "specialty": "Emergency Medicine",
+        "years_experience": 10,
+        "location": "Denver, CO",
+        "board_certified": true,
+        "licenses": ["CO", "UT", "WY"],
+        "skills": ["Trauma Management", "Critical Care", "Emergency Ultrasound", "ATLS"],
+        "availability": "60 days",
+        "preferred_employment": ["full-time"]
+      },
+      "expected": {
+        "overall_score_min": 50,
+        "overall_score_max": 75,
+        "location_score_max": 0.6,
+        "must_have_gaps": true
+      }
+    },
+    {
+      "id": "golden-005",
+      "name": "Board eligible but not certified",
+      "job": {
+        "title": "Cardiologist",
+        "specialty": "Cardiology",
+        "location": "Atlanta, GA",
+        "requirements": "Seeking cardiologist for growing practice. Board certification in cardiology required. Active Georgia license required. Echocardiography and stress testing experience needed. Minimum 2 years post-fellowship.",
+        "preferred_experience_years": 2,
+        "employment_type": "full-time"
+      },
+      "candidate": {
+        "specialty": "Cardiology",
+        "years_experience": 3,
+        "location": "Atlanta, GA",
+        "board_certified": false,
+        "licenses": ["GA"],
+        "skills": ["Echocardiography", "Stress Testing", "Cardiac MRI", "Heart Failure"],
+        "availability": "90 days",
+        "preferred_employment": ["full-time"]
+      },
+      "expected": {
+        "overall_score_min": 50,
+        "overall_score_max": 75,
+        "credentials_score_max": 0.8,
+        "must_have_gaps": true
+      }
+    },
+    {
+      "id": "golden-006",
+      "name": "Overqualified candidate",
+      "job": {
+        "title": "General Pediatrician",
+        "specialty": "Pediatrics",
+        "location": "Miami, FL",
+        "requirements": "General pediatrician for outpatient practice. Board certification required. Active Florida license. Well-child visits, vaccinations, and common childhood illnesses. Entry level position, 1-3 years preferred.",
+        "preferred_experience_years": 2,
+        "employment_type": "full-time"
+      },
+      "candidate": {
+        "specialty": "Pediatrics",
+        "years_experience": 15,
+        "location": "Miami, FL",
+        "board_certified": true,
+        "licenses": ["FL", "GA"],
+        "skills": ["Pediatric Cardiology", "Congenital Heart Disease", "Fetal Echo", "PICU"],
+        "availability": "60 days",
+        "preferred_employment": ["full-time"]
+      },
+      "expected": {
+        "overall_score_min": 55,
+        "overall_score_max": 80,
+        "experience_note": "Significantly overqualified for entry-level role"
+      }
+    },
+    {
+      "id": "golden-007",
+      "name": "Perfect psychiatry telemed match",
+      "job": {
+        "title": "Telepsychiatrist",
+        "specialty": "Psychiatry",
+        "location": "Remote - WA/OR",
+        "requirements": "Board-certified psychiatrist for remote telepsychiatry. Active WA and OR licenses required. Experience with telemedicine platforms. Psychopharmacology and CBT expertise. Addiction psychiatry experience preferred.",
+        "preferred_experience_years": 3,
+        "employment_type": "full-time"
+      },
+      "candidate": {
+        "specialty": "Psychiatry",
+        "years_experience": 6,
+        "location": "Seattle, WA",
+        "board_certified": true,
+        "licenses": ["WA", "OR"],
+        "skills": ["Telepsychiatry", "Psychopharmacology", "CBT", "Addiction Psychiatry", "Crisis Intervention"],
+        "availability": "Immediately",
+        "preferred_employment": ["full-time"]
+      },
+      "expected": {
+        "overall_score_min": 85,
+        "overall_score_max": 100,
+        "specialty_score_min": 0.9,
+        "location_score_min": 0.9
+      }
+    },
+    {
+      "id": "golden-008",
+      "name": "Partial skills match - surgeon for general surgery role",
+      "job": {
+        "title": "General Surgeon",
+        "specialty": "General Surgery",
+        "location": "Dallas, TX",
+        "requirements": "Board-certified general surgeon for community hospital. Must have laparoscopic surgery experience. Active TX license required. Trauma surgery, hernia repair, cholecystectomy, appendectomy. Call coverage expected.",
+        "preferred_experience_years": 5,
+        "employment_type": "full-time"
+      },
+      "candidate": {
+        "specialty": "Orthopedic Surgery",
+        "years_experience": 7,
+        "location": "Dallas, TX",
+        "board_certified": true,
+        "licenses": ["TX"],
+        "skills": ["Arthroscopic Surgery", "Joint Replacement", "Sports Medicine", "Fracture Management"],
+        "availability": "30 days",
+        "preferred_employment": ["full-time"]
+      },
+      "expected": {
+        "overall_score_min": 20,
+        "overall_score_max": 50,
+        "specialty_score_max": 0.5,
+        "must_have_gaps": true
+      }
+    },
+    {
+      "id": "golden-009",
+      "name": "Availability mismatch - 90 day delay for urgent need",
+      "job": {
+        "title": "Urgent Care Physician",
+        "specialty": "Emergency Medicine",
+        "location": "Phoenix, AZ",
+        "requirements": "Urgent care physician needed immediately for high-volume clinic. Board certification in emergency medicine or family medicine. Active AZ license. Must be able to start within 2 weeks. Walk-in clinic experience preferred.",
+        "preferred_experience_years": 3,
+        "employment_type": "full-time"
+      },
+      "candidate": {
+        "specialty": "Emergency Medicine",
+        "years_experience": 4,
+        "location": "Phoenix, AZ",
+        "board_certified": true,
+        "licenses": ["AZ"],
+        "skills": ["Trauma Management", "Point-of-Care Ultrasound", "Pediatric Emergencies"],
+        "availability": "90 days",
+        "preferred_employment": ["full-time"]
+      },
+      "expected": {
+        "overall_score_min": 55,
+        "overall_score_max": 80,
+        "availability_score_max": 0.5,
+        "must_have_gaps": true
+      }
+    },
+    {
+      "id": "golden-010",
+      "name": "Locum tenens preference match",
+      "job": {
+        "title": "Locum Anesthesiologist",
+        "specialty": "Anesthesiology",
+        "location": "Nashville, TN",
+        "requirements": "Locum tenens anesthesiologist for 3-month assignment at community hospital. Board certification required. Active TN license or willingness to obtain. Regional anesthesia and cardiac cases. Flexible scheduling.",
+        "preferred_experience_years": 5,
+        "employment_type": "locum tenens"
+      },
+      "candidate": {
+        "specialty": "Anesthesiology",
+        "years_experience": 11,
+        "location": "Nashville, TN",
+        "board_certified": true,
+        "licenses": ["TN", "KY"],
+        "skills": ["Regional Anesthesia", "Cardiac Anesthesia", "Pain Management", "Obstetric Anesthesia"],
+        "availability": "Immediately",
+        "preferred_employment": ["full-time", "locum tenens"]
+      },
+      "expected": {
+        "overall_score_min": 80,
+        "overall_score_max": 100,
+        "specialty_score_min": 0.9,
+        "availability_score_min": 0.8
+      }
+    }
+  ]
+}
