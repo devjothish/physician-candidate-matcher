@@ -41,7 +41,7 @@ from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
-SHORTLIST_SIZE = 8
+SHORTLIST_SIZE = 5
 DETERMINISTIC_THRESHOLD = 0.25
 
 
@@ -77,9 +77,10 @@ class MatchingService:
         sanitized_requirements = input_check.sanitized_text
 
         claude = ClaudeService(request_id)
-        model = self.settings.default_model
+        parse_model = self.settings.default_model
+        assess_model = self.settings.fast_model
 
-        # Phase 1: Parse JD → structured requirements (1 LLM call)
+        # Phase 1: Parse JD → structured requirements (1 LLM call, Sonnet for accuracy)
         phase1_start = time.time()
         job_for_parse = JobDescription(
             title=job.title,
@@ -89,7 +90,7 @@ class MatchingService:
             preferred_experience_years=job.preferred_experience_years,
             employment_type=job.employment_type,
         )
-        reqs, phase1_llm = self._parse_jd(claude, job_for_parse, model)
+        reqs, phase1_llm = self._parse_jd(claude, job_for_parse, parse_model)
         phase1_ms = (time.time() - phase1_start) * 1000
         trace.add_phase(
             PhaseMetrics(
@@ -139,16 +140,16 @@ class MatchingService:
                 total_candidates=len(candidates),
                 matches=[],
                 processing_time_ms=round(trace.total_latency_ms, 1),
-                model_used=model,
+                model_used=parse_model,
                 tokens_used=trace.total_tokens,
                 estimated_cost_usd=round(trace.total_cost_usd, 4),
                 request_id=request_id,
             )
 
-        # Phase 3: LLM assessment on shortlist only (1 LLM call)
+        # Phase 3: LLM assessment on shortlist only (1 LLM call, Haiku for speed)
         shortlist = scored[:SHORTLIST_SIZE]
         phase3_start = time.time()
-        raw_assessments, phase3_llm = self._batch_assess(claude, reqs, shortlist, model)
+        raw_assessments, phase3_llm = self._batch_assess(claude, reqs, shortlist, assess_model)
 
         # Output guardrail on LLM assessments
         shortlist_ids = {ds.candidate.id for ds in shortlist}
@@ -193,13 +194,13 @@ class MatchingService:
             total_candidates=len(candidates),
             matches=top_matches,
             processing_time_ms=round(trace.total_latency_ms, 1),
-            model_used=model,
+            model_used=assess_model,
             tokens_used=trace.total_tokens,
             estimated_cost_usd=round(trace.total_cost_usd, 4),
             request_id=request_id,
         )
 
-        id_map = self._save_matches(job, response, model, trace.total_latency_ms)
+        id_map = self._save_matches(job, response, assess_model, trace.total_latency_ms)
 
         # Populate match_id on each result from DB-generated UUIDs
         for m in top_matches:

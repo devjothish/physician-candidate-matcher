@@ -47,7 +47,7 @@ graph TB
     end
 
     subgraph Services["External Services"]
-        CLAUDE["Claude API\nSonnet 4"]
+        CLAUDE["Claude API\nSonnet 4 + Haiku 4.5"]
         SUPA[("Supabase\nPostgreSQL")]
     end
 
@@ -119,9 +119,9 @@ graph LR
 **90% cost reduction. 14x faster.** Cost is fixed regardless of candidate pool size.
 
 Breakdown per match request:
-- Phase 1 (JD parse): ~600 input tokens, ~400 output tokens = ~$0.0018 (Sonnet)
+- Phase 1 (JD parse): ~600 input tokens, ~400 output tokens = ~$0.005 (Sonnet, accuracy matters here)
 - Phase 2 (deterministic): 0 tokens = $0.00
-- Phase 3 (batch assess): ~2000 input tokens, ~800 output tokens = ~$0.0012 (Sonnet)
+- Phase 3 (batch assess): ~1500 input tokens, ~800 output tokens = ~$0.003 (Haiku, speed matters here)
 
 ## Production Features
 
@@ -196,7 +196,7 @@ make dev-frontend   # http://localhost:3000
 | Frontend | Next.js 16, React 19, shadcn/ui, Tailwind CSS 4 | Recruiter-facing UI with candidate cards, score breakdowns, feedback buttons |
 | State | React Query (TanStack Query) | Server state management, mutation handling |
 | Backend | FastAPI, Pydantic 2, uvicorn | REST API with automatic OpenAPI docs, request validation |
-| LLM | Anthropic SDK (direct), Claude Sonnet 4 | JD parsing and batch candidate assessment |
+| LLM | Anthropic SDK (direct), Claude Sonnet 4 + Haiku 4.5 | Sonnet for JD parsing (accuracy), Haiku for batch assessment (speed) |
 | Database | Supabase (PostgreSQL), PostgREST | Candidates, matches, feedback, LLM call metrics |
 | Observability | structlog (JSON), custom RequestTrace | Structured logging, per-phase tracing, cost tracking |
 | Rate Limiting | slowapi | Per-IP rate limiting on match and batch endpoints |
