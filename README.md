@@ -4,6 +4,8 @@ AI-powered physician-job matching that uses LLM intelligence where it matters an
 
 Built by [Jothiswaran Arumugam](https://linkedin.com/in/jothiswaran-arumugam), Lead Data and AI Engineer at RevStar.
 
+**[Try the Live App](https://frontend-phi-ruby-58.vercel.app/match)** | **[API Docs](https://physician-matcher-api-production.up.railway.app/docs)** | **[Testing Guide](docs/TESTING-GUIDE.md)**
+
 ## The Problem
 
 Healthcare recruiters manually match physicians to job openings. The current process: read a job description, flip through candidate profiles, make gut calls on fit. At scale, this is slow, inconsistent, and expensive.
@@ -182,8 +184,10 @@ make dev-frontend   # http://localhost:3000
 
 ## Testing
 
+**[Testing Guide](docs/TESTING-GUIDE.md)** - 10 hands-on test cases you can run through the live UI in 5 minutes. Covers happy paths, dealbreakers, edge cases, and API verification.
+
 ```bash
-make test          # Unit tests with coverage
+make test          # Unit tests with coverage (40 edge case tests)
 make test-eval     # Golden set evaluation (5/5 cases, zero LLM calls)
 make lint          # ruff + black + mypy + ESLint
 ```

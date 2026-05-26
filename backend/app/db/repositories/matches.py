@@ -37,7 +37,9 @@ class MatchRepository:
         tokens_used: int,
         cost_usd: float,
         latency_ms: float,
-    ) -> None:
+    ) -> dict[str, str]:
+        """Returns mapping of candidate_id -> match row UUID."""
+        id_map: dict[str, str] = {}
         for m in match_response.matches:
             record = {
                 "job_title": job.title,
@@ -63,16 +65,21 @@ class MatchRepository:
                 with httpx.Client(timeout=5.0) as client:
                     r = client.post(
                         f"{self.base_url}/{self.TABLE}",
-                        headers=self.headers,
+                        headers={**self.headers, "Prefer": "return=representation"},
                         json=record,
                     )
                     r.raise_for_status()
+                    rows = r.json()
+                    if rows:
+                        id_map[m.candidate_id] = rows[0]["id"]
             except Exception:
                 logger.exception(
                     "match_save_failed",
                     request_id=match_response.request_id,
                     candidate_id=m.candidate_id,
                 )
+
+        return id_map
 
     def get_recent(self, limit: int = 50) -> list[dict]:
         try:

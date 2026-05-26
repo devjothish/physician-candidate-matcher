@@ -26,7 +26,7 @@ import type { FeedbackType } from '@/lib/types';
 
 interface CandidateCardProps {
   candidate: CandidateMatch;
-  onFeedback: (candidateId: string, type: FeedbackType) => void;
+  onFeedback: (matchId: string, candidateId: string, type: FeedbackType) => void;
   feedbackDisabled: boolean;
 }
 
@@ -81,7 +81,7 @@ export function CandidateCard({
 
   function handleFeedback(type: FeedbackType) {
     setFeedbackGiven(type);
-    onFeedback(candidate.candidate_id, type);
+    onFeedback(candidate.match_id, candidate.candidate_id, type);
   }
 
   const overallPct = Math.round(candidate.overall_score);

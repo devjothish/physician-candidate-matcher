@@ -112,10 +112,10 @@ class MatchingService:
             for issue in req_validation.issues:
                 trace.add_warning(f"jd_parse:{issue}")
 
-        # Fetch candidates
-        candidates = self.candidate_repo.get_by_specialty(job.specialty, limit=self.settings.max_candidates_per_request)
-        if not candidates:
-            candidates = self.candidate_repo.get_all(limit=self.settings.max_candidates_per_request)
+        # Fetch all candidates and let Phase 2 deterministic scoring handle filtering.
+        # At <1000 candidates, fetching all is faster than multiple specialty queries.
+        # The scorer + dealbreaker penalties will rank the right ones to the top.
+        candidates = self.candidate_repo.get_all(limit=self.settings.max_candidates_per_request)
         if not candidates:
             raise MatchingError(detail="No candidates available.")
 
@@ -134,7 +134,16 @@ class MatchingService:
         )
 
         if not scored:
-            raise MatchingError(detail="No candidates met the minimum scoring threshold.")
+            return MatchResponse(
+                job_title=job.title,
+                total_candidates=len(candidates),
+                matches=[],
+                processing_time_ms=round(trace.total_latency_ms, 1),
+                model_used=model,
+                tokens_used=trace.total_tokens,
+                estimated_cost_usd=round(trace.total_cost_usd, 4),
+                request_id=request_id,
+            )
 
         # Phase 3: LLM assessment on shortlist only (1 LLM call)
         shortlist = scored[:SHORTLIST_SIZE]
@@ -190,7 +199,11 @@ class MatchingService:
             request_id=request_id,
         )
 
-        self._save_matches(job, response, model, trace.total_latency_ms)
+        id_map = self._save_matches(job, response, model, trace.total_latency_ms)
+
+        # Populate match_id on each result from DB-generated UUIDs
+        for m in top_matches:
+            m.match_id = id_map.get(m.candidate_id, "")
 
         # Emit full request trace
         trace.emit()
@@ -381,9 +394,9 @@ class MatchingService:
         response: MatchResponse,
         model: str,
         latency_ms: float,
-    ) -> None:
+    ) -> dict[str, str]:
         try:
-            self.match_repo.create(
+            return self.match_repo.create(
                 job=job,
                 match_response=response,
                 model_used=model,
@@ -396,3 +409,4 @@ class MatchingService:
                 "match_persistence_failed",
                 request_id=response.request_id,
             )
+            return {}

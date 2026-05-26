@@ -1,18 +1,16 @@
 'use client';
 
-import { useState } from 'react';
 import { toast } from 'sonner';
 import { JobForm } from '@/components/job-form';
 import { MatchResults } from '@/components/match-results';
 import { useMatch } from '@/hooks/use-match';
 import { submitFeedback } from '@/lib/api';
-import type { MatchResponse } from '@/lib/api';
 import type { JobDescription } from '@/lib/api';
 import type { FeedbackType } from '@/lib/types';
 
 export default function MatchPage() {
-  const [results, setResults] = useState<MatchResponse | null>(null);
   const mutation = useMatch();
+  const results = mutation.data ?? mutation.cachedResult ?? null;
 
   function handleSubmit(
     job: JobDescription,
@@ -23,7 +21,6 @@ export default function MatchPage() {
       { job, limit, useRouting },
       {
         onSuccess: (data) => {
-          setResults(data);
           toast.success(
             `Found ${data.matches.length} matches from ${data.total_candidates} candidates`
           );
@@ -37,10 +34,10 @@ export default function MatchPage() {
     );
   }
 
-  async function handleFeedback(candidateId: string, type: FeedbackType) {
+  async function handleFeedback(matchId: string, candidateId: string, type: FeedbackType) {
     if (!results) return;
     try {
-      await submitFeedback(results.request_id, candidateId, type);
+      await submitFeedback(matchId, candidateId, type);
       toast.success('Feedback recorded');
     } catch (error) {
       const message =

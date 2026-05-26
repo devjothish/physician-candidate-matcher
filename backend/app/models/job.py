@@ -23,10 +23,9 @@ class JobDescription(BaseModel):
         description="Medical specialty, e.g. 'Cardiology'",
     )
     location: str = Field(
-        ...,
-        min_length=2,
+        default="",
         max_length=200,
-        description="Job location, e.g. 'Boston, MA'",
+        description="Job location, e.g. 'Boston, MA'. Leave empty for remote/any location.",
     )
     requirements: str = Field(
         ...,

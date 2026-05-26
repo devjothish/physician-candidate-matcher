@@ -14,6 +14,7 @@ class MatchScore(BaseModel):
 class CandidateMatch(BaseModel):
     """A single candidate's match result against a job description."""
 
+    match_id: str = Field(default="", description="Database row ID for feedback reference")
     candidate_id: str
     candidate_name: str
     overall_score: float = Field(..., ge=0.0, le=100.0, description="Weighted overall score 0-100")

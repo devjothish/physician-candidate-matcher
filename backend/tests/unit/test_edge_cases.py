@@ -8,14 +8,11 @@ Tests cover:
 - Dealbreakers: wrong specialty, missing credentials
 """
 
-import pytest
-
 from app.core.guardrails import validate_batch_assessment, validate_jd_input
-from app.core.taxonomy import normalize_specialty, score_specialty, specialty_distance
+from app.core.taxonomy import normalize_specialty, specialty_distance
 from app.models.candidate import Candidate
 from app.services.scorer import (
     ParsedRequirements,
-    _score_skills_keyword,
     _tokenize_skills,
     score_all,
     score_candidate,

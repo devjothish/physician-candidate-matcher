@@ -28,7 +28,7 @@ const initialState: FormState = {
   specialty: '',
   location: '',
   requirements: '',
-  preferred_experience_years: 5,
+  preferred_experience_years: '',
   employment_type: 'full-time',
   limit: 10,
   useRouting: true,
@@ -55,7 +55,7 @@ export function JobForm({ onSubmit, isLoading }: JobFormProps) {
       specialty: form.specialty,
       location: form.location.trim(),
       requirements: form.requirements.trim(),
-      preferred_experience_years: form.preferred_experience_years,
+      preferred_experience_years: parseInt(form.preferred_experience_years, 10) || 0,
       employment_type: form.employment_type,
     };
     onSubmit(job, form.limit, form.useRouting);
@@ -136,13 +136,9 @@ export function JobForm({ onSubmit, isLoading }: JobFormProps) {
                 type="number"
                 min={0}
                 max={50}
+                placeholder="0"
                 value={form.preferred_experience_years}
-                onChange={(e) =>
-                  handleChange(
-                    'preferred_experience_years',
-                    parseInt(e.target.value, 10) || 0
-                  )
-                }
+                onChange={(e) => handleChange('preferred_experience_years', e.target.value)}
               />
             </div>
 

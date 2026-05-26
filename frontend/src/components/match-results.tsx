@@ -9,7 +9,7 @@ import type { FeedbackType } from '@/lib/types';
 
 interface MatchResultsProps {
   results: MatchResponse | null;
-  onFeedback: (candidateId: string, type: FeedbackType) => void;
+  onFeedback: (matchId: string, candidateId: string, type: FeedbackType) => void;
 }
 
 export function MatchResults({
