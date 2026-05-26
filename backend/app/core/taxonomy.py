@@ -374,7 +374,7 @@ _RELATED_CLASSIFICATIONS: dict[str, set[str]] = {
 }
 
 
-def normalize_specialty(name: str) -> str:
+def normalize_specialty(name: str | None) -> str:
     """Map any specialty name to its NPI classification.
 
     Checks in order:
@@ -384,7 +384,12 @@ def normalize_specialty(name: str) -> str:
     4. Substring match against all names
     5. Returns input unchanged if no match found
     """
+    if not name:
+        return name or ""
+
     name_lower = name.lower().strip()
+    if not name_lower:
+        return ""
 
     if name_lower in _classification_index:
         return _classification_index[name_lower]
