@@ -86,7 +86,7 @@ class TestTaxonomyEdgeCases:
         assert specialty_distance("Cardiology", "Cardiology") == 0.0
 
     def test_distance_unknown_both(self):
-        assert specialty_distance("FakeA", "FakeB") == 0.7
+        assert specialty_distance("FakeA", "FakeB") == 0.8
 
     def test_multi_word_subspecialty(self):
         assert normalize_specialty("Advanced Heart Failure and Transplant Cardiology") == "Internal Medicine"

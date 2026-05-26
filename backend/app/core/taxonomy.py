@@ -443,23 +443,23 @@ PHYSICIAN_TAXONOMY: list[TaxonomyEntry] = [
 # Build lookup indexes on module load
 _classification_index: dict[str, str] = {}
 _specialization_to_classification: dict[str, str] = {}
-_display_name_index: dict[str, str] = {}
+_name_to_specialization: dict[str, str] = {}
 _all_names: dict[str, str] = {}
 
 for _entry in PHYSICIAN_TAXONOMY:
     _cls_lower = _entry.classification.lower()
     _spec_lower = _entry.specialization.lower()
-    _display_lower = _entry.display_name.lower()
 
     _classification_index[_cls_lower] = _entry.classification
     if _spec_lower:
         _specialization_to_classification[_spec_lower] = _entry.classification
-    _display_name_index[_display_lower] = _entry.classification
+        _name_to_specialization[_spec_lower] = _entry.specialization
     _all_names[_cls_lower] = _entry.classification
     if _spec_lower:
         _all_names[_spec_lower] = _entry.classification
 
-# Common aliases not in the official taxonomy
+# Alias -> (classification, specialization or None)
+# When specialization is set, matching uses subspecialty-level precision
 _ALIASES: dict[str, str] = {
     "cardiology": "Internal Medicine",
     "cardiac electrophysiology": "Internal Medicine",
@@ -485,83 +485,119 @@ _ALIASES: dict[str, str] = {
     "hepatologist": "Internal Medicine",
     "infectious disease specialist": "Internal Medicine",
     "internist": "Internal Medicine",
-    "ob/gyn": "Obstetrics & Gynecology",
-    "obgyn": "Obstetrics & Gynecology",
-    "gynecologist": "Obstetrics & Gynecology",
-    "obstetrician": "Obstetrics & Gynecology",
-    "reproductive medicine": "Obstetrics & Gynecology",
-    "maternal-fetal medicine": "Obstetrics & Gynecology",
-    "orthopedics": "Orthopaedic Surgery",
-    "orthopedic surgery": "Orthopaedic Surgery",
-    "orthopedic surgeon": "Orthopaedic Surgery",
-    "spine surgeon": "Orthopaedic Surgery",
-    "sports medicine surgeon": "Orthopaedic Surgery",
-    "joint replacement surgeon": "Orthopaedic Surgery",
-    "psychiatrist": "Psychiatry & Neurology",
-    "psychiatry": "Psychiatry & Neurology",
-    "neurologist": "Psychiatry & Neurology",
-    "neurology": "Psychiatry & Neurology",
-    "child psychiatrist": "Psychiatry & Neurology",
-    "behavioral health": "Psychiatry & Neurology",
-    "mental health": "Psychiatry & Neurology",
-    "neuropsychiatry": "Psychiatry & Neurology",
-    "epileptologist": "Psychiatry & Neurology",
-    "movement disorders": "Psychiatry & Neurology",
-    "stroke neurologist": "Psychiatry & Neurology",
-    "anesthesiologist": "Anesthesiology",
-    "anesthesia": "Anesthesiology",
-    "pain management": "Anesthesiology",
-    "pain medicine": "Anesthesiology",
-    "critical care anesthesiology": "Anesthesiology",
-    "dermatologist": "Dermatology",
-    "skin specialist": "Dermatology",
-    "cosmetic dermatology": "Dermatology",
-    "mohs surgeon": "Dermatology",
-    "emergency physician": "Emergency Medicine",
-    "er physician": "Emergency Medicine",
-    "er doctor": "Emergency Medicine",
-    "trauma physician": "Emergency Medicine",
-    "acute care": "Emergency Medicine",
-    "radiologist": "Radiology",
-    "diagnostic radiology": "Radiology",
-    "interventional radiology": "Radiology",
-    "neuroradiology": "Radiology",
-    "urologist": "Urology",
-    "urologic surgeon": "Urology",
-    "urologic oncology": "Urology",
-    "pediatrician": "Pediatrics",
-    "pediatric medicine": "Pediatrics",
-    "neonatologist": "Pediatrics",
-    "neonatal medicine": "Pediatrics",
-    "child health": "Pediatrics",
-    "family physician": "Family Medicine",
-    "family doctor": "Family Medicine",
-    "family practice": "Family Medicine",
-    "general practitioner": "General Practice",
-    "general surgeon": "Surgery",
-    "surgeon": "Surgery",
-    "vascular surgeon": "Surgery",
-    "trauma surgeon": "Surgery",
-    "surgical oncologist": "Surgery",
-    "cardiothoracic surgeon": "Thoracic Surgery (Cardiothoracic Vascular Surgery)",
-    "thoracic surgeon": "Thoracic Surgery (Cardiothoracic Vascular Surgery)",
-    "pathologist": "Pathology",
-    "ophthalmologist": "Ophthalmology",
-    "eye doctor": "Ophthalmology",
-    "ent": "Otolaryngology",
-    "ent specialist": "Otolaryngology",
-    "ear nose throat": "Otolaryngology",
-    "physiatrist": "Physical Medicine & Rehabilitation",
-    "rehab medicine": "Physical Medicine & Rehabilitation",
-    "pm&r": "Physical Medicine & Rehabilitation",
-    "plastic surgeon": "Plastic Surgery",
-    "reconstructive surgeon": "Plastic Surgery",
-    "preventive medicine": "Preventive Medicine",
-    "occupational medicine": "Preventive Medicine",
-    "public health physician": "Preventive Medicine",
-    "nuclear medicine": "Nuclear Medicine",
-    "nuclear cardiologist": "Nuclear Medicine",
 }
+
+_SPECIALIZATION_ALIASES: dict[str, str] = {
+    "cardiology": "Cardiovascular Disease",
+    "cardiologist": "Cardiovascular Disease",
+    "cardiac electrophysiology": "Clinical Cardiac Electrophysiology",
+    "cardiac electrophysiologist": "Clinical Cardiac Electrophysiology",
+    "interventional cardiologist": "Interventional Cardiology",
+    "interventional cardiology": "Interventional Cardiology",
+    "heart failure": "Advanced Heart Failure and Transplant Cardiology",
+    "gi": "Gastroenterology",
+    "gi medicine": "Gastroenterology",
+    "gastroenterology": "Gastroenterology",
+    "gastroenterologist": "Gastroenterology",
+    "pulmonology": "Pulmonary Disease",
+    "pulmonologist": "Pulmonary Disease",
+    "lung medicine": "Pulmonary Disease",
+    "respiratory medicine": "Pulmonary Disease",
+    "oncology": "Medical Oncology",
+    "oncologist": "Medical Oncology",
+    "hematologist": "Hematology",
+    "nephrologist": "Nephrology",
+    "nephrology": "Nephrology",
+    "rheumatologist": "Rheumatology",
+    "rheumatology": "Rheumatology",
+    "endocrinologist": "Endocrinology, Diabetes & Metabolism",
+    "endocrinology": "Endocrinology, Diabetes & Metabolism",
+    "hepatologist": "Hepatology",
+    "hepatology": "Hepatology",
+    "infectious disease": "Infectious Disease",
+    "infectious disease specialist": "Infectious Disease",
+}
+
+_ALIASES.update(
+    {
+        "ob/gyn": "Obstetrics & Gynecology",
+        "obgyn": "Obstetrics & Gynecology",
+        "gynecologist": "Obstetrics & Gynecology",
+        "obstetrician": "Obstetrics & Gynecology",
+        "reproductive medicine": "Obstetrics & Gynecology",
+        "maternal-fetal medicine": "Obstetrics & Gynecology",
+        "orthopedics": "Orthopaedic Surgery",
+        "orthopedic surgery": "Orthopaedic Surgery",
+        "orthopedic surgeon": "Orthopaedic Surgery",
+        "spine surgeon": "Orthopaedic Surgery",
+        "sports medicine surgeon": "Orthopaedic Surgery",
+        "joint replacement surgeon": "Orthopaedic Surgery",
+        "psychiatrist": "Psychiatry & Neurology",
+        "psychiatry": "Psychiatry & Neurology",
+        "neurologist": "Psychiatry & Neurology",
+        "neurology": "Psychiatry & Neurology",
+        "child psychiatrist": "Psychiatry & Neurology",
+        "behavioral health": "Psychiatry & Neurology",
+        "mental health": "Psychiatry & Neurology",
+        "neuropsychiatry": "Psychiatry & Neurology",
+        "epileptologist": "Psychiatry & Neurology",
+        "movement disorders": "Psychiatry & Neurology",
+        "stroke neurologist": "Psychiatry & Neurology",
+        "anesthesiologist": "Anesthesiology",
+        "anesthesia": "Anesthesiology",
+        "pain management": "Anesthesiology",
+        "pain medicine": "Anesthesiology",
+        "critical care anesthesiology": "Anesthesiology",
+        "dermatologist": "Dermatology",
+        "skin specialist": "Dermatology",
+        "cosmetic dermatology": "Dermatology",
+        "mohs surgeon": "Dermatology",
+        "emergency physician": "Emergency Medicine",
+        "er physician": "Emergency Medicine",
+        "er doctor": "Emergency Medicine",
+        "trauma physician": "Emergency Medicine",
+        "acute care": "Emergency Medicine",
+        "radiologist": "Radiology",
+        "diagnostic radiology": "Radiology",
+        "interventional radiology": "Radiology",
+        "neuroradiology": "Radiology",
+        "urologist": "Urology",
+        "urologic surgeon": "Urology",
+        "urologic oncology": "Urology",
+        "pediatrician": "Pediatrics",
+        "pediatric medicine": "Pediatrics",
+        "neonatologist": "Pediatrics",
+        "neonatal medicine": "Pediatrics",
+        "child health": "Pediatrics",
+        "family physician": "Family Medicine",
+        "family doctor": "Family Medicine",
+        "family practice": "Family Medicine",
+        "general practitioner": "General Practice",
+        "general surgeon": "Surgery",
+        "surgeon": "Surgery",
+        "vascular surgeon": "Surgery",
+        "trauma surgeon": "Surgery",
+        "surgical oncologist": "Surgery",
+        "cardiothoracic surgeon": "Thoracic Surgery (Cardiothoracic Vascular Surgery)",
+        "thoracic surgeon": "Thoracic Surgery (Cardiothoracic Vascular Surgery)",
+        "pathologist": "Pathology",
+        "ophthalmologist": "Ophthalmology",
+        "eye doctor": "Ophthalmology",
+        "ent": "Otolaryngology",
+        "ent specialist": "Otolaryngology",
+        "ear nose throat": "Otolaryngology",
+        "physiatrist": "Physical Medicine & Rehabilitation",
+        "rehab medicine": "Physical Medicine & Rehabilitation",
+        "pm&r": "Physical Medicine & Rehabilitation",
+        "plastic surgeon": "Plastic Surgery",
+        "reconstructive surgeon": "Plastic Surgery",
+        "preventive medicine": "Preventive Medicine",
+        "occupational medicine": "Preventive Medicine",
+        "public health physician": "Preventive Medicine",
+        "nuclear medicine": "Nuclear Medicine",
+        "nuclear cardiologist": "Nuclear Medicine",
+    }
+)
 
 
 # Classifications that share patients / have overlapping scope
@@ -632,15 +668,80 @@ def normalize_specialty(name: str | None) -> str:
     return name
 
 
+_PARENT_CHILD: dict[str, set[str]] = {
+    "Cardiovascular Disease": {
+        "Interventional Cardiology",
+        "Clinical Cardiac Electrophysiology",
+        "Advanced Heart Failure and Transplant Cardiology",
+        "Adult Congenital Heart Disease",
+    },
+    "Hematology": {"Hematology & Oncology"},
+    "Hematology & Oncology": {"Medical Oncology", "Hematology"},
+    "Pulmonary Disease": {"Critical Care Medicine"},
+}
+
+
+def _is_parent_child(sub_a: str, sub_b: str) -> bool:
+    """Check if two specializations have a parent-child relationship."""
+    children_a = _PARENT_CHILD.get(sub_a, set())
+    children_b = _PARENT_CHILD.get(sub_b, set())
+    return sub_b in children_a or sub_a in children_b
+
+
+def _resolve_specialization(name: str) -> str | None:
+    """Resolve a name to its NPI specialization (subspecialty level).
+
+    Returns None if the name maps to a classification only, not a subspecialty.
+    """
+    if not name:
+        return None
+    name_lower = name.lower().strip()
+
+    if name_lower in _SPECIALIZATION_ALIASES:
+        return _SPECIALIZATION_ALIASES[name_lower]
+
+    if name_lower in _name_to_specialization:
+        return _name_to_specialization[name_lower]
+
+    for spec_name, spec_val in _name_to_specialization.items():
+        if name_lower in spec_name or spec_name in name_lower:
+            return spec_val
+
+    return None
+
+
 def specialty_distance(spec_a: str, spec_b: str) -> float:
     """Compute distance between two specialties using NPI taxonomy.
 
-    Returns:
-        0.0 - Same classification (perfect match)
-        0.3 - Related classifications (shared patient scope)
-        0.7 - Same grouping but unrelated classifications
-        1.0 - Completely unrelated
+    Two-level comparison:
+        0.0 - Same specialization (e.g., both Interventional Cardiology)
+        0.3 - Same classification, different specialization (e.g., Cardiology vs Oncology under Internal Medicine)
+        0.5 - Related classifications (e.g., Internal Medicine and Family Medicine)
+        0.8 - Unrelated classifications
     """
+    # Level 1: Compare at specialization (subspecialty) level
+    sub_a = _resolve_specialization(spec_a)
+    sub_b = _resolve_specialization(spec_b)
+
+    if sub_a and sub_b:
+        if sub_a == sub_b:
+            return 0.0
+        # Check parent-child relationships within a classification
+        if _is_parent_child(sub_a, sub_b):
+            return 0.1
+        # Both have subspecialties but they differ - check if same parent
+        cls_a = normalize_specialty(spec_a)
+        cls_b = normalize_specialty(spec_b)
+        if cls_a == cls_b:
+            return 0.3
+    elif sub_a or sub_b:
+        # One has subspecialty, other doesn't. Check classification match.
+        cls_a = normalize_specialty(spec_a)
+        cls_b = normalize_specialty(spec_b)
+        if cls_a == cls_b:
+            return 0.15
+
+    # Level 2: Compare at classification level
     cls_a = normalize_specialty(spec_a)
     cls_b = normalize_specialty(spec_b)
 
@@ -650,9 +751,9 @@ def specialty_distance(spec_a: str, spec_b: str) -> float:
     related_a = _RELATED_CLASSIFICATIONS.get(cls_a, set())
     related_b = _RELATED_CLASSIFICATIONS.get(cls_b, set())
     if cls_b in related_a or cls_a in related_b:
-        return 0.3
+        return 0.5
 
-    return 0.7
+    return 0.8
 
 
 def find_related(classification: str) -> list[str]:
@@ -664,20 +765,30 @@ def find_related(classification: str) -> list[str]:
 def score_specialty(candidate_specialty: str, required_specialty: str, adjacent: list[str]) -> float:
     """Score specialty match using NPI taxonomy distance.
 
-    This replaces the hardcoded synonym map approach.
+    Two-level scoring:
+        1.0  Same subspecialty (Cardiology -> Cardiology)
+        0.85 Same classification, candidate is generalist (Internal Medicine -> Cardiology)
+        0.5  Same classification, different subspecialty (Oncology -> Cardiology)
+        0.4  Related classification via adjacency list
+        0.3  Related classification in taxonomy
+        0.1  Unrelated
     """
     dist = specialty_distance(candidate_specialty, required_specialty)
 
     if dist == 0.0:
         return 1.0
+    if dist <= 0.15:
+        return 0.85
     if dist <= 0.3:
-        return 0.7
+        return 0.5
+    if dist <= 0.5:
+        return 0.3
 
     for adj in adjacent:
         adj_dist = specialty_distance(candidate_specialty, adj)
-        if adj_dist == 0.0:
-            return 0.6
+        if adj_dist <= 0.15:
+            return 0.4
         if adj_dist <= 0.3:
-            return 0.5
+            return 0.35
 
     return 0.1
