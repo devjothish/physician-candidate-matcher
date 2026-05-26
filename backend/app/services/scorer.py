@@ -1,11 +1,15 @@
 """Deterministic scoring engine - no LLM calls.
 
-Scores candidates on 6 structured dimensions using pure Python.
+Scores candidates on 7 structured dimensions using pure Python.
 Runs in <1ms per candidate with zero cost and zero hallucination risk.
+
+Specialty matching uses the NPI Healthcare Provider Taxonomy (NUCC v25.1)
+instead of a hardcoded synonym map.
 """
 
 from dataclasses import dataclass
 
+from app.core.taxonomy import score_specialty as _taxonomy_score_specialty
 from app.models.candidate import Candidate
 from app.utils.logging import get_logger
 
@@ -184,136 +188,18 @@ def score_all(
     return scores
 
 
-SPECIALTY_SYNONYMS: dict[str, set[str]] = {
-    "cardiology": {
-        "interventional cardiology",
-        "cardiac electrophysiology",
-        "cardiovascular medicine",
-        "cardiovascular disease",
-        "heart failure",
-        "cardiac surgery",
-    },
-    "internal medicine": {
-        "hospital medicine",
-        "hospitalist",
-        "general internal medicine",
-        "geriatrics",
-        "geriatric medicine",
-    },
-    "emergency medicine": {
-        "emergency room",
-        "er physician",
-        "acute care",
-        "trauma medicine",
-    },
-    "orthopedic surgery": {
-        "orthopedics",
-        "orthopaedic surgery",
-        "sports medicine",
-        "spine surgery",
-        "joint replacement",
-    },
-    "obstetrics and gynecology": {
-        "ob/gyn",
-        "obgyn",
-        "gynecology",
-        "obstetrics",
-        "maternal-fetal medicine",
-        "reproductive medicine",
-    },
-    "psychiatry": {
-        "behavioral health",
-        "mental health",
-        "child psychiatry",
-        "addiction psychiatry",
-        "psychosomatic medicine",
-    },
-    "neurology": {
-        "neuroscience",
-        "epileptology",
-        "movement disorders",
-        "neuroimmunology",
-        "stroke neurology",
-    },
-    "radiology": {
-        "diagnostic radiology",
-        "interventional radiology",
-        "neuroradiology",
-        "body imaging",
-    },
-    "anesthesiology": {
-        "anesthesia",
-        "pain medicine",
-        "pain management",
-        "critical care anesthesiology",
-    },
-    "pulmonology": {
-        "pulmonary medicine",
-        "pulmonary and critical care",
-        "respiratory medicine",
-        "lung medicine",
-    },
-    "gastroenterology": {
-        "gi medicine",
-        "hepatology",
-        "digestive diseases",
-    },
-    "oncology": {
-        "medical oncology",
-        "hematology-oncology",
-        "hematology oncology",
-        "cancer medicine",
-    },
-    "dermatology": {
-        "skin medicine",
-        "dermatologic surgery",
-        "cosmetic dermatology",
-    },
-    "urology": {
-        "urologic surgery",
-        "urologic oncology",
-    },
-    "pediatrics": {
-        "pediatric medicine",
-        "child health",
-        "neonatal medicine",
-        "neonatology",
-    },
-}
-
-
-def _normalize_specialty(spec: str) -> str:
-    """Map a specialty or subspecialty name to its canonical parent."""
-    spec_lower = spec.lower().strip()
-    for canonical, synonyms in SPECIALTY_SYNONYMS.items():
-        if spec_lower == canonical or spec_lower in synonyms:
-            return canonical
-        for syn in synonyms:
-            if spec_lower in syn or syn in spec_lower:
-                return canonical
-    return spec_lower
-
-
 def _score_specialty(c: Candidate, r: ParsedRequirements) -> float:
-    c_spec = c.specialty.lower().strip()
-    r_spec = r.required_specialty.lower().strip()
+    """Score specialty match using the NPI Healthcare Provider Taxonomy.
 
-    # Direct match or substring
-    if c_spec == r_spec or c_spec in r_spec or r_spec in c_spec:
-        return 1.0
-
-    # Synonym-based matching
-    c_norm = _normalize_specialty(c_spec)
-    r_norm = _normalize_specialty(r_spec)
-    if c_norm == r_norm:
-        return 0.9
-
-    # Check LLM-extracted adjacent specialties
-    adjacent_lower = [s.lower() for s in r.adjacent_specialties]
-    if c_spec in adjacent_lower or c_norm in [_normalize_specialty(a) for a in adjacent_lower]:
-        return 0.6
-
-    return 0.1
+    Uses NUCC v25.1 taxonomy codes to compute distance between
+    candidate specialty and required specialty. Covers 900+ provider
+    types with hierarchical classification -> specialization mapping.
+    """
+    return _taxonomy_score_specialty(
+        c.specialty,
+        r.required_specialty,
+        r.adjacent_specialties,
+    )
 
 
 def _score_experience(c: Candidate, r: ParsedRequirements) -> float:
