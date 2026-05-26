@@ -2,8 +2,6 @@
 
 AI-powered physician-job matching that uses LLM intelligence where it matters and deterministic scoring where it doesn't. Two API calls to Claude, regardless of candidate pool size.
 
-Built by [Jothiswaran Arumugam](https://linkedin.com/in/jothiswaran-arumugam), Lead Data and AI Engineer at RevStar.
-
 **[Try the Live App](https://frontend-phi-ruby-58.vercel.app/match)** | **[API Docs](https://physician-matcher-api-production.up.railway.app/docs)** | **[Testing Guide](docs/TESTING-GUIDE.md)**
 
 ## The Problem
@@ -31,48 +29,73 @@ A two-phase architecture that uses LLM intelligence only where it adds value.
 
 ## Architecture
 
+### System Overview
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#e8f4fd', 'primaryBorderColor': '#4a90d9', 'lineColor': '#5b6b7d', 'textColor': '#2d3748', 'fontSize': '14px'}}}%%
+graph TB
+    subgraph Frontend["Frontend - Vercel"]
+        UI["Recruiter UI\nshadcn/ui + React Query"]
+    end
+
+    subgraph Backend["Backend - Railway"]
+        IG["Input Guardrails\nInjection / PII / Length"]
+        P1["Phase 1: JD Parser\n1 LLM call\nFree text → structured requirements"]
+        P2["Phase 2: Deterministic Scorer\nPure Python / 0 LLM calls / &lt;1ms\n7 dimensions + NPI taxonomy"]
+        P3["Phase 3: Batch Assessment\n1 LLM call for entire shortlist\nSkills alignment + narrative"]
+        OG["Output Guardrails\nBounds / Bias / Schema"]
+    end
+
+    subgraph Services["External Services"]
+        CLAUDE["Claude API\nSonnet 4"]
+        SUPA[("Supabase\nPostgreSQL")]
+    end
+
+    UI -->|"POST /api/v1/match"| IG
+    IG --> P1
+    P1 -->|"ParsedRequirements"| P2
+    P2 -->|"Top 8 shortlist"| P3
+    P3 --> OG
+    OG -->|"Ranked results + scores"| UI
+
+    P1 -..->|"1 call"| CLAUDE
+    P3 -..->|"1 call"| CLAUDE
+    P2 -..->|"Read"| SUPA
+    OG -..->|"Write"| SUPA
+
+    style UI fill:#f0f4ff,stroke:#4a6fa5,stroke-width:2px,color:#2d3748
+    style IG fill:#fef2f2,stroke:#b91c1c,stroke-width:1px,color:#2d3748
+    style P1 fill:#fefce8,stroke:#a16207,stroke-width:1px,color:#2d3748
+    style P2 fill:#ecfdf5,stroke:#047857,stroke-width:2px,color:#2d3748
+    style P3 fill:#fefce8,stroke:#a16207,stroke-width:1px,color:#2d3748
+    style OG fill:#fef2f2,stroke:#b91c1c,stroke-width:1px,color:#2d3748
+    style CLAUDE fill:#f5f3ff,stroke:#6d28d9,stroke-width:1px,color:#2d3748
+    style SUPA fill:#f0fdf4,stroke:#166534,stroke-width:1px,color:#2d3748
 ```
-                    +-----------------------------------+
-                    |         Next.js Frontend           |
-                    |     (shadcn/ui + React Query)      |
-                    +-----------------+-----------------+
-                                      | HTTPS
-                    +-----------------v-----------------+
-                    |         FastAPI Backend             |
-                    |                                     |
-                    |  +-----------------------------+   |
-                    |  |    Input Guardrails          |   |
-                    |  |  (injection, PII, length)    |   |
-                    |  +-------------+---------------+   |
-                    |                |                     |
-                    |  +-------------v---------------+   |
-                    |  |  Phase 1: JD Parser (LLM)   |   |
-                    |  |  Free text -> structured     |   |
-                    |  +-------------+---------------+   |
-                    |                |                     |
-                    |  +-------------v---------------+   |
-                    |  |  Phase 2: Deterministic      |   |
-                    |  |  Scorer (pure Python)        |   |
-                    |  |  6 dimensions, <1ms          |   |
-                    |  |  Dealbreaker penalties        |   |
-                    |  +-------------+---------------+   |
-                    |                | top 8              |
-                    |  +-------------v---------------+   |
-                    |  |  Phase 3: Batch LLM         |   |
-                    |  |  Skills + narrative          |   |
-                    |  |  (1 call for all)            |   |
-                    |  +-------------+---------------+   |
-                    |                |                     |
-                    |  +-------------v---------------+   |
-                    |  |  Output Guardrails           |   |
-                    |  |  (bounds, bias, schema)      |   |
-                    |  +-----------------------------+   |
-                    +--------+----------------+----------+
-                             |                |
-                    +--------v------+  +------v----------+
-                    |  Claude API    |  |    Supabase     |
-                    |  (Sonnet 4)    |  |   (Postgres)    |
-                    +---------------+  +-----------------+
+
+> Green = no LLM cost. Yellow = LLM call. Red = guardrails. Phase 2 handles 7 dimensions in pure Python for $0.00.
+
+### Matching Pipeline
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#f8fafc', 'lineColor': '#64748b', 'textColor': '#1e293b'}}}%%
+graph LR
+    JD["Job Description\n(free text)"] --> P1["Phase 1\nLLM Parse"]
+    P1 --> REQ["Structured\nRequirements"]
+    REQ --> P2["Phase 2\nScore All"]
+    DB[("Candidates\nDB")] --> P2
+    P2 --> FIL{"Above\nthreshold?"}
+    FIL -->|"Yes (top 8)"| P3["Phase 3\nBatch LLM"]
+    FIL -->|"No"| OUT["Filtered"]
+    P3 --> MRG["Merge\n70% deterministic\n30% LLM skills"]
+    MRG --> RES["Ranked Results\nwith Explanations"]
+
+    style P1 fill:#fefce8,stroke:#a16207,color:#1e293b
+    style P2 fill:#ecfdf5,stroke:#047857,stroke-width:2px,color:#1e293b
+    style P3 fill:#fefce8,stroke:#a16207,color:#1e293b
+    style OUT fill:#f1f5f9,stroke:#94a3b8,color:#64748b
+    style RES fill:#f0f4ff,stroke:#4a6fa5,stroke-width:2px,color:#1e293b
+    style DB fill:#f0fdf4,stroke:#166534,color:#1e293b
 ```
 
 ## Key Design Decisions
@@ -202,13 +225,19 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full setup instructions.
 
 ## Documentation
 
-- [Architecture](docs/ARCHITECTURE.md) - detailed technical architecture, scoring engine, guardrails, observability
-- [Deployment](docs/DEPLOYMENT.md) - local setup, Supabase config, Railway/Vercel deployment, troubleshooting
-- [System Design](docs/SYSTEM-DESIGN.md) - interview-style design doc with trade-offs, scaling analysis, capacity estimation
+- [Architecture](docs/ARCHITECTURE.md) - scoring engine, guardrails, observability, eval framework
+- [System Design](docs/SYSTEM-DESIGN.md) - design doc with trade-offs, scaling analysis, "why not RAG/LangChain"
+- [Production Roadmap](docs/ROADMAP.md) - Salesforce integration, SNOMED CT skills ontology, HIPAA, multi-tenancy, cost projections
+- [Deployment](docs/DEPLOYMENT.md) - local setup, Supabase config, Railway/Vercel deployment
+- [Testing Guide](docs/TESTING-GUIDE.md) - 10 hands-on test cases with expected results
 
-## Built With
+## Scope
 
-Built with Claude Code in a single session. Architecture design, implementation, QA hardening, and deployment configuration.
+This is a proof-of-architecture for an internal physician recruiting tool. It demonstrates the matching pipeline, scoring engine, and production patterns that would underpin a full internal deployment.
+
+What is included: matching API, scoring engine, NPI taxonomy, guardrails, eval framework, recruiter UI, analytics, feedback loop.
+
+What a full internal deployment would add: Salesforce CRM integration, SNOMED CT skills ontology, HIPAA controls, multi-tenancy, authentication, and feedback-driven weight tuning. See [Production Roadmap](docs/ROADMAP.md) for details.
 
 ## License
 
