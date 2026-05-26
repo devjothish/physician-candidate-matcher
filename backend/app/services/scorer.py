@@ -82,6 +82,7 @@ class DeterministicScore:
     experience_score: float
     location_score: float
     credentials_score: float
+    skills_keyword_score: float
     availability_score: float
     employment_score: float
     composite: float
@@ -93,17 +94,19 @@ class DeterministicScore:
             "Experience Fit": self.experience_score,
             "Location & Licensure": self.location_score,
             "Board Certification": self.credentials_score,
+            "Skills (Keyword)": self.skills_keyword_score,
             "Availability": self.availability_score,
             "Employment Fit": self.employment_score,
         }
 
 
 WEIGHTS = {
-    "specialty": 0.35,
-    "experience": 0.20,
+    "specialty": 0.30,
+    "experience": 0.18,
     "location": 0.15,
-    "credentials": 0.15,
-    "availability": 0.10,
+    "credentials": 0.12,
+    "skills_keyword": 0.12,
+    "availability": 0.08,
     "employment": 0.05,
 }
 
@@ -131,6 +134,7 @@ def score_candidate(
     experience = _score_experience(candidate, reqs)
     location = _score_location(candidate, reqs)
     credentials = _score_credentials(candidate, reqs)
+    skills_keyword = _score_skills_keyword(candidate, reqs)
     availability = _score_availability(candidate, reqs)
     employment = _score_employment(candidate, reqs)
 
@@ -139,6 +143,7 @@ def score_candidate(
         + experience * WEIGHTS["experience"]
         + location * WEIGHTS["location"]
         + credentials * WEIGHTS["credentials"]
+        + skills_keyword * WEIGHTS["skills_keyword"]
         + availability * WEIGHTS["availability"]
         + employment * WEIGHTS["employment"]
     )
@@ -159,6 +164,7 @@ def score_candidate(
         experience_score=experience,
         location_score=location,
         credentials_score=credentials,
+        skills_keyword_score=skills_keyword,
         availability_score=availability,
         employment_score=employment,
         composite=composite,
@@ -178,15 +184,133 @@ def score_all(
     return scores
 
 
+SPECIALTY_SYNONYMS: dict[str, set[str]] = {
+    "cardiology": {
+        "interventional cardiology",
+        "cardiac electrophysiology",
+        "cardiovascular medicine",
+        "cardiovascular disease",
+        "heart failure",
+        "cardiac surgery",
+    },
+    "internal medicine": {
+        "hospital medicine",
+        "hospitalist",
+        "general internal medicine",
+        "geriatrics",
+        "geriatric medicine",
+    },
+    "emergency medicine": {
+        "emergency room",
+        "er physician",
+        "acute care",
+        "trauma medicine",
+    },
+    "orthopedic surgery": {
+        "orthopedics",
+        "orthopaedic surgery",
+        "sports medicine",
+        "spine surgery",
+        "joint replacement",
+    },
+    "obstetrics and gynecology": {
+        "ob/gyn",
+        "obgyn",
+        "gynecology",
+        "obstetrics",
+        "maternal-fetal medicine",
+        "reproductive medicine",
+    },
+    "psychiatry": {
+        "behavioral health",
+        "mental health",
+        "child psychiatry",
+        "addiction psychiatry",
+        "psychosomatic medicine",
+    },
+    "neurology": {
+        "neuroscience",
+        "epileptology",
+        "movement disorders",
+        "neuroimmunology",
+        "stroke neurology",
+    },
+    "radiology": {
+        "diagnostic radiology",
+        "interventional radiology",
+        "neuroradiology",
+        "body imaging",
+    },
+    "anesthesiology": {
+        "anesthesia",
+        "pain medicine",
+        "pain management",
+        "critical care anesthesiology",
+    },
+    "pulmonology": {
+        "pulmonary medicine",
+        "pulmonary and critical care",
+        "respiratory medicine",
+        "lung medicine",
+    },
+    "gastroenterology": {
+        "gi medicine",
+        "hepatology",
+        "digestive diseases",
+    },
+    "oncology": {
+        "medical oncology",
+        "hematology-oncology",
+        "hematology oncology",
+        "cancer medicine",
+    },
+    "dermatology": {
+        "skin medicine",
+        "dermatologic surgery",
+        "cosmetic dermatology",
+    },
+    "urology": {
+        "urologic surgery",
+        "urologic oncology",
+    },
+    "pediatrics": {
+        "pediatric medicine",
+        "child health",
+        "neonatal medicine",
+        "neonatology",
+    },
+}
+
+
+def _normalize_specialty(spec: str) -> str:
+    """Map a specialty or subspecialty name to its canonical parent."""
+    spec_lower = spec.lower().strip()
+    for canonical, synonyms in SPECIALTY_SYNONYMS.items():
+        if spec_lower == canonical or spec_lower in synonyms:
+            return canonical
+        for syn in synonyms:
+            if spec_lower in syn or syn in spec_lower:
+                return canonical
+    return spec_lower
+
+
 def _score_specialty(c: Candidate, r: ParsedRequirements) -> float:
     c_spec = c.specialty.lower().strip()
     r_spec = r.required_specialty.lower().strip()
 
+    # Direct match or substring
     if c_spec == r_spec or c_spec in r_spec or r_spec in c_spec:
         return 1.0
 
+    # Synonym-based matching
+    c_norm = _normalize_specialty(c_spec)
+    r_norm = _normalize_specialty(r_spec)
+    if c_norm == r_norm:
+        return 0.9
+
+    # Check LLM-extracted adjacent specialties
     adjacent_lower = [s.lower() for s in r.adjacent_specialties]
-    if c_spec in adjacent_lower:
+    if c_spec in adjacent_lower or c_norm in [_normalize_specialty(a) for a in adjacent_lower]:
         return 0.6
 
     return 0.1
@@ -273,6 +397,50 @@ def _score_availability(c: Candidate, r: ParsedRequirements) -> float:
         return 0.5
     else:
         return 0.3
+
+
+def _score_skills_keyword(c: Candidate, r: ParsedRequirements) -> float:
+    """Token-level keyword matching for skills.
+
+    Not exact string comparison. Tokenizes both sides and checks
+    for word overlap. "Cardiac Catheterization" partially matches
+    "Catheterization Lab" because "catheterization" is a shared token.
+    """
+    all_required = r.required_skills + r.preferred_skills
+    if not all_required:
+        return 0.7
+
+    req_tokens = _tokenize_skills(all_required)
+    cand_tokens = _tokenize_skills(c.skills)
+
+    if not req_tokens:
+        return 0.7
+
+    overlap = req_tokens & cand_tokens
+    ratio = len(overlap) / len(req_tokens)
+
+    if ratio >= 0.6:
+        return 1.0
+    elif ratio >= 0.4:
+        return 0.8
+    elif ratio >= 0.2:
+        return 0.6
+    elif ratio > 0:
+        return 0.4
+    return 0.2
+
+
+def _tokenize_skills(skills: list[str]) -> set[str]:
+    """Break skill phrases into individual meaningful tokens."""
+    stop_words = {"and", "or", "the", "of", "in", "for", "with", "a", "an", "to"}
+    tokens = set()
+    for skill in skills:
+        words = skill.lower().replace("-", " ").replace("/", " ").split()
+        for w in words:
+            cleaned = w.strip(".,;:()")
+            if len(cleaned) > 2 and cleaned not in stop_words:
+                tokens.add(cleaned)
+    return tokens
 
 
 def _score_employment(c: Candidate, r: ParsedRequirements) -> float:
